@@ -21,6 +21,8 @@ import 'package:proxypin/network/channel/channel.dart';
 import 'package:proxypin/network/channel/channel_context.dart';
 import 'package:proxypin/network/http/http.dart';
 import 'package:proxypin/ui/component/multi_select_controller.dart';
+import 'package:proxypin/ui/component/request_tree.dart';
+import 'package:proxypin/ui/configuration.dart';
 import 'package:proxypin/ui/mobile/request/domians.dart';
 import 'package:proxypin/ui/mobile/request/request.dart';
 import 'package:proxypin/ui/mobile/request/request_sequence.dart';
@@ -85,7 +87,8 @@ class RequestListState extends State<RequestListWidget> {
         child: Scaffold(
           appBar: AppBar(
               title: TabBar(tabs: tabs, onTap: (index) => tabClickHandles[index].call()),
-              automaticallyImplyLeading: false),
+              automaticallyImplyLeading: false,
+              actions: [viewModeButton()]),
           body: TabBarView(
             children: [
               RequestSequence(
@@ -98,6 +101,7 @@ class RequestListState extends State<RequestListWidget> {
                   key: domainListKey,
                   list: container,
                   proxyServer: widget.proxyServer,
+                  selectionController: widget.selectionController,
                   onRemove: domainListRemove,
                   onInitialized: () {
                     if (_currentSearchModel != null && _currentSearchModel!.isNotEmpty) {
@@ -181,6 +185,41 @@ class RequestListState extends State<RequestListWidget> {
   void sort(bool sortDesc) {
     requestSequenceKey.currentState?.sort(sortDesc);
     domainListKey.currentState?.sort(sortDesc);
+  }
+
+  ///域名列表当前是否树形展示。首帧时子组件还没挂载，回退到配置，避免图标显示错模式
+  bool get isTreeMode =>
+      domainListKey.currentState?.isTreeMode ?? AppConfiguration.current?.requestViewMode.value == RequestViewMode.tree;
+
+  ///列表/树形切换，放在标题栏一眼可见；设置页里也有一份
+  Widget viewModeButton() {
+    var notifier = AppConfiguration.current?.requestViewMode;
+    if (notifier == null) {
+      return _viewModeIcon();
+    }
+    return ValueListenableBuilder<RequestViewMode>(
+        valueListenable: notifier, builder: (context, _, __) => _viewModeIcon());
+  }
+
+  Widget _viewModeIcon() {
+    return IconButton(
+        icon: Icon(isTreeMode ? Icons.account_tree_outlined : Icons.list, size: 20),
+        tooltip: '${localizations.requestViewMode}: '
+            '${isTreeMode ? localizations.requestViewTree : localizations.requestViewList}',
+        onPressed: () => setViewMode(isTreeMode ? RequestViewMode.list : RequestViewMode.tree));
+  }
+
+  ///切换域名列表的展示方式
+  void setViewMode(RequestViewMode mode) {
+    domainListKey.currentState?.setViewMode(mode);
+  }
+
+  void expandAll() {
+    domainListKey.currentState?.expandAll();
+  }
+
+  void collapseAll() {
+    domainListKey.currentState?.collapseAll();
   }
 }
 
