@@ -68,3 +68,4 @@ flutter gen-l10n                 # sinh lại app_localizations_*.dart sau khi s
 - [docs/architecture.md](docs/architecture.md) - bản đồ module và luồng dữ liệu.
 - [docs/ui-request-list.md](docs/ui-request-list.md) - chi tiết UI danh sách request/domain, nơi tính năng tree view sống.
 - [docs/contributing-upstream.md](docs/contributing-upstream.md) - checklist trước khi mở PR lên upstream.
+- [docs/build-and-release.md](docs/build-and-release.md) - build từng nền tảng, ký + notarize macOS, và các bẫy đã gặp thật.
