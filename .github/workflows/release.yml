@@ -24,12 +24,28 @@ jobs:
       - run: flutter build windows --release
         env:
           CL: /D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS
-      - name: Dong goi zip
+      - name: Dong goi zip portable
         run: Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath ProxyPin-windows-x64.zip
       - uses: actions/upload-artifact@v4
         with:
           name: ProxyPin-windows-x64
           path: ProxyPin-windows-x64.zip
+
+      # Bo cai dat: flutter_distributor doc windows/packaging/exe/make_config.yaml
+      # (icon, app_id, tao shortcut, cai vao Program Files) roi goi Inno Setup.
+      # Runner khong co san Inno Setup nen phai cai qua choco truoc.
+      - name: Cai Inno Setup
+        run: choco install innosetup --no-progress -y
+      - name: Dong goi bo cai exe
+        run: |
+          dart pub global activate flutter_distributor
+          flutter_distributor package --platform windows --targets exe --skip-clean
+        env:
+          CL: /D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ProxyPin-windows-setup
+          path: dist/**/*.exe
 
   android:
     runs-on: ubuntu-latest
