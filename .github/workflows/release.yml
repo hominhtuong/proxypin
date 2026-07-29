@@ -18,7 +18,12 @@ jobs:
       # code_forge la FFI plugin viet bang Rust, cargokit can rustup luc build
       - uses: dtolnay/rust-toolchain@stable
       - run: flutter pub get
+      # permission_handler_windows con dung <experimental/coroutine>, MSVC 14.5x
+      # bien deprecation do thanh loi cung (STL1011). Bien moi truong CL them
+      # macro tat assertion cho moi lan goi cl.exe, khoi phai va plugin.
       - run: flutter build windows --release
+        env:
+          CL: /D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS
       - name: Dong goi zip
         run: Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath ProxyPin-windows-x64.zip
       - uses: actions/upload-artifact@v4
