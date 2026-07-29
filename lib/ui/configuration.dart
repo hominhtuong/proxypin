@@ -19,6 +19,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:proxypin/network/util/logger.dart';
+import 'package:proxypin/ui/component/request_tree.dart';
 import 'package:proxypin/utils/platform.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -81,6 +82,24 @@ class AppConfiguration {
 
   /// Headers展示模式: table(逐行) / text(原始文本)
   String headerViewMode = "table";
+
+  /// 抓包域名列表展示模式: list(平铺) / tree(路径树, 类似Charles)
+  ///
+  /// 默认树形只对新安装生效。老用户的 ui_config.json 里没有这个键,
+  /// 升级上来时会被置回 list,界面和升级前完全一致。见 [initConfig]。
+  final ValueNotifier<RequestViewMode> requestViewMode = ValueNotifier(RequestViewMode.tree);
+
+  /// 从已保存的配置里得出展示模式。
+  ///
+  /// 键存在就照用户选的来;键不存在说明这份配置是旧版本写的,那时还没有树形视图,
+  /// 于是保持平铺列表,升级上来的用户看到的界面和升级前一模一样。
+  /// 全新安装根本没有配置文件,走字段默认值,也就是树形。
+  static RequestViewMode requestViewModeOf(Map<String, dynamic> config) {
+    if (!config.containsKey('requestViewMode')) {
+      return RequestViewMode.list;
+    }
+    return RequestViewMode.of(config['requestViewMode']);
+  }
 
   /// 底部导航栏
   bool bottomNavigation = true;
@@ -209,6 +228,7 @@ class AppConfiguration {
       pipEnabled.value = config['pipEnabled'] ?? true;
       pipIcon.value = config['pipIcon'] ?? false;
       headerViewMode = config['headerViewMode'] ?? "table";
+      requestViewMode.value = requestViewModeOf(config);
       bottomNavigation = config['bottomNavigation'] ?? true;
       memoryCleanupThreshold = config['memoryCleanupThreshold'];
       autoReadEnabled = config['autoReadEnabled'] ?? true;
@@ -256,6 +276,7 @@ class AppConfiguration {
       "language": _language?.languageCode,
       "languageScript": _language?.scriptCode,
       "headerViewMode": headerViewMode,
+      "requestViewMode": requestViewMode.value.name,
       "autoReadEnabled": autoReadEnabled,
       "clearConfirm": clearConfirm,
       if (memoryCleanupThreshold != null) 'memoryCleanupThreshold': memoryCleanupThreshold,
