@@ -1,0 +1,79 @@
+name: Build release artifacts
+
+# Build thu cong tu tab Actions, hoac tu dong khi day tag v*
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.4'
+          channel: stable
+      # code_forge la FFI plugin viet bang Rust, cargokit can rustup luc build
+      - uses: dtolnay/rust-toolchain@stable
+      - run: flutter pub get
+      - run: flutter build windows --release
+      - name: Dong goi zip
+        run: Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath ProxyPin-windows-x64.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ProxyPin-windows-x64
+          path: ProxyPin-windows-x64.zip
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.4'
+          channel: stable
+      - uses: dtolnay/rust-toolchain@stable
+      - run: flutter pub get
+      # CI khong co android/key.properties, tao mot cai tro vao debug keystore
+      - name: Tao key.properties tro vao debug keystore
+        run: |
+          keytool -genkey -v -keystore $HOME/.android/debug.keystore             -storepass android -alias androiddebugkey -keypass android             -keyalg RSA -keysize 2048 -validity 10000             -dname "CN=Android Debug,O=Android,C=US" 2>/dev/null || true
+          printf 'storePassword=android
+keyPassword=android
+keyAlias=androiddebugkey
+storeFile=%s/.android/debug.keystore
+' "$HOME" > android/key.properties
+      - run: flutter build apk --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ProxyPin-android-apk
+          path: build/app/outputs/flutter-apk/*.apk
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.4'
+          channel: stable
+      - uses: dtolnay/rust-toolchain@stable
+      - run: flutter pub get
+      # code_forge chua ho tro Swift Package Manager dung cach, phai dung CocoaPods
+      - run: flutter config --no-enable-swift-package-manager
+      - run: flutter build macos --release
+      - name: Dong goi dmg
+        run: |
+          mkdir -p dmg && cp -R build/macos/Build/Products/Release/ProxyPin.app dmg/
+          ln -s /Applications dmg/Applications
+          hdiutil create -volname "ProxyPin" -srcfolder dmg -ov -format UDZO ProxyPin-macos-arm64.dmg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ProxyPin-macos-arm64
+          path: ProxyPin-macos-arm64.dmg
