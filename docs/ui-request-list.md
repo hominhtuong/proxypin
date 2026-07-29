@@ -25,11 +25,32 @@ Vì hai tab dùng chung một `container`, xoá request ở tab này phải gọ
 
 ## Chế độ List / Tree
 
-Lưu ở `AppConfiguration.requestViewMode` ([lib/ui/configuration.dart](../lib/ui/configuration.dart)), ghi xuống `ui_config.json` với key `requestViewMode`, giá trị `list` hoặc `tree`. Mặc định là `list`, tức người dùng cũ cập nhật lên không thấy gì khác.
+Lưu ở `AppConfiguration.requestViewMode` ([lib/ui/configuration.dart](../lib/ui/configuration.dart)), ghi xuống `ui_config.json` với key `requestViewMode`, giá trị `list` hoặc `tree`. **Mặc định là `tree`.**
 
-Bật/tắt từ menu 3 chấm:
-- Desktop: menu của tab danh sách - `View Mode: List/Tree`, kèm `Expand All` / `Collapse All` khi đang ở tree.
-- Mobile: menu `+` ở toolbar (`MoreMenu`) - cùng bộ mục.
+Chuyển chế độ:
+- Nút icon ngay trên thanh tab (list ⇄ tree) - đường chính, có ở cả desktop lẫn mobile.
+- Desktop còn có mục `View Mode: List/Tree` trong menu 3 chấm, kèm `Expand All` / `Collapse All` khi đang ở tree.
+- Mobile: menu `+` (`MoreMenu`) - cùng bộ mục.
+
+Thư mục **mặc định thu gọn**, giống Charles. Bấm dòng thư mục để mở, bấm lần nữa để thu lại.
+
+Ở chế độ tree, mỗi request chiếm **đúng một dòng** (bỏ dòng phụ chứa thời gian/status/size) để cây không bị rối; chi tiết xem ở panel bên phải khi bấm vào.
+
+## Điều hướng bàn phím (desktop)
+
+Bấm vào một dòng bất kỳ để danh sách nhận focus, sau đó:
+
+| Phím | Hành vi |
+|---|---|
+| ↓ / ↑ | Di chuyển con trỏ theo đúng thứ tự đang hiển thị, xuyên qua ranh giới domain |
+| → | Thư mục đang đóng thì mở ra; đang mở rồi thì nhảy vào con đầu tiên |
+| ← | Thư mục đang mở thì thu lại; đang đóng hoặc là dòng request thì quay về node cha |
+
+Con trỏ dừng ở dòng request sẽ tự mở request đó ở panel bên phải, giống Charles.
+
+Cơ chế: `DomainWidgetState` giữ `cursor` (`ValueNotifier<String?>` chứa `RequestTreeRow.key`) và một `FocusNode` bọc quanh danh sách. `_visibleRows()` dựng danh sách dòng phẳng gồm dòng domain + cây của các domain đang mở, **dùng đúng hàm `RequestTree.visibleRows()` mà widget dùng để render**, nên thứ tự phím đi luôn khớp thứ tự trên màn hình - đây là lý do tách `visibleRows()` ra thay vì để mỗi bên tự duyệt cây.
+
+Cuộn theo con trỏ nhờ một `SizedBox` cao 0 mang `GlobalKey`, chèn ngay phía trên dòng đang chọn rồi gọi `Scrollable.ensureVisible`. Cách này tránh phải bọc thêm widget quanh chính dòng đó, vốn sẽ làm `State` của dòng bị dựng lại mỗi lần con trỏ đi qua.
 
 ## Model cây
 
@@ -42,7 +63,9 @@ Bật/tắt từ menu 3 chấm:
 | `RequestTree.build()` | dựng cây cho một domain từ danh sách request |
 | `RequestTree.leafLabel()` | nhãn của dòng request: segment cuối + query |
 | `RequestTreeExpansion` | trạng thái đóng/mở, tách khỏi widget |
-| `RequestTreeStyle` | nhãn + độ sâu áp lên dòng request khi ở tree |
+| `RequestTreeRow` | một dòng trên màn hình: key, parentKey, depth, label, node, request |
+| `RequestTree.visibleRows()` | duỗi phần cây đang mở thành danh sách dòng theo đúng thứ tự hiển thị |
+| `RequestTreeStyle` | nhãn + độ sâu + rowKey áp lên dòng request khi ở tree |
 
 ### Quy tắc dựng cây (bám đúng Charles)
 
@@ -88,7 +111,11 @@ var requestColor = color(path);   // vẫn là path đầy đủ
 
 ## Search
 
-`SearchModel` lọc theo keyword và điều kiện. Trên desktop, search dựng `searchView` là bản copy của `containerMap` chỉ chứa request khớp, `containerMap` gốc không bị đụng. Bản copy được tạo với `forceExpanded: true` để mọi thư mục mở sẵn, nếu không request khớp sẽ bị thư mục đóng che mất.
+`SearchModel` lọc theo keyword và điều kiện. Trên desktop, search dựng `searchView` là bản copy của `containerMap` chỉ chứa request khớp, `containerMap` gốc không bị đụng.
+
+Bản copy dùng **một `RequestTreeExpansion` riêng** (`searchExpansion`) khởi tạo với `expandedByDefault: true`. Nhờ vậy kết quả tìm kiếm mở sẵn, nhưng người dùng **vẫn thu gọn được** từng thư mục.
+
+Bản đầu tiên dùng cờ `forceExpanded` ép mở bất chấp trạng thái - kết quả là khi đang search thì bấm vào thư mục không có tác dụng gì. Đừng quay lại cách đó.
 
 Trên mobile, search chỉ lọc theo tên domain (hành vi có sẵn của upstream), không lọc từng request, nên cây không cần ép mở.
 
@@ -113,7 +140,7 @@ Range-select cần một danh sách phẳng **theo đúng thứ tự đang hiể
 | File | Nội dung |
 |---|---|
 | [test/request_tree_test.dart](../test/request_tree_test.dart) | model: tách segment, gộp thư mục, node vừa là thư mục vừa là request, query không tạo node, giữ thứ tự chèn, `orderedRequests`, `leafLabel`, `RequestTreeExpansion` |
-| [test/request_tree_view_test.dart](../test/request_tree_view_test.dart) | widget: mặc định đóng, bấm để mở, `forceExpanded`, độ sâu thụt lề, số request trên thư mục, `expandAll`/`collapseAll` |
+| [test/request_tree_view_test.dart](../test/request_tree_view_test.dart) | widget: mặc định đóng, bấm để mở, bấm lần nữa để thu, `expandedByDefault`, độ sâu thụt lề, số request trên thư mục, `expandAll`/`collapseAll` |
 
 ```bash
 flutter test test/request_tree_test.dart test/request_tree_view_test.dart
