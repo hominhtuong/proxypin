@@ -128,7 +128,10 @@ class DesktopRequestListState extends State<DesktopRequestListWidget> with Autom
                     automaticallyImplyLeading: false,
                     actions: [viewModeButton(), popupMenus()],
                   ),
-                  bottomNavigationBar: Search(key: searchKey, onSearch: search),
+                  //搜索框贴着窗口底边，留出和列表一样的边距
+                  bottomNavigationBar: Padding(
+                      padding: const EdgeInsets.only(right: 5, bottom: 8),
+                      child: Search(key: searchKey, onSearch: search)),
                   body: Padding(
                       padding: const EdgeInsets.only(right: 5),
                       child: Column(children: [
